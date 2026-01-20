@@ -21,12 +21,36 @@ COLUMNS = ["id", "date", "amount", "description", "category", "source", "status"
 
 def get_db_connection():
     """
-    Connects to Google Sheets using the service account credentials.
-    Returns the gspread client object.
+    Connects to Google Sheets using:
+    1. Streamlit Secrets (if in Cloud/Deployment)
+    2. Local 'credentials.json' (if in Local Development)
     """
     try:
+        import streamlit as st
+        # Check if running in Streamlit and secrets are available
+        # Note: st.secrets works even if not "in streamlit" if .streamlit/secrets.toml exists, 
+        # but primarily for Cloud this is key.
+        
+        # We look for a section [gcp_service_account] in secrets
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            # Create a dict from the secrets object
+            # creds_dict = dict(st.secrets["gcp_service_account"]) # Might need specific formatting
+            # actually oauth2client expects a dict
+            key_dict = dict(st.secrets["gcp_service_account"])
+            
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, SCOPE)
+            client = gspread.authorize(creds)
+            return client
+            
+    except ImportError:
+        pass # Not using streamlit or not installed
+    except Exception as e:
+        print(f"Secrets check failed (ignoring if local): {e}")
+
+    # Fallback to local file
+    try:
         if not os.path.exists(CREDENTIALS_FILE):
-            print(f"Error: {CREDENTIALS_FILE} not found.")
+            print(f"Error: {CREDENTIALS_FILE} not found (and no Secrets detected).")
             return None
 
         creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
