@@ -47,10 +47,25 @@ def get_db_connection():
     except Exception as e:
         print(f"Secrets check failed (ignoring if local): {e}")
 
-    # Fallback to local file
+    # 2. Standard Environment Variable (Render/Railway/Docker)
+    # We expect the content of credentials.json to be in a variable named 'GCP_CREDENTIALS'
+    try:
+        env_creds = os.environ.get("GCP_CREDENTIALS")
+        if env_creds:
+            # It might be passed as a string representation of the JSON
+            key_dict = json.loads(env_creds)
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, SCOPE)
+            client = gspread.authorize(creds)
+            return client
+    except Exception as e:
+         print(f"Env var check failed: {e}")
+
+    # 3. Fallback to local file
     try:
         if not os.path.exists(CREDENTIALS_FILE):
-            print(f"Error: {CREDENTIALS_FILE} not found (and no Secrets detected).")
+             # Don't print error if we already found it via other means, but here we are in fallback.
+             # Only print if we are truly stuck.
+            print(f"Error: {CREDENTIALS_FILE} not found (and no Cloud Secrets detected).")
             return None
 
         creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
