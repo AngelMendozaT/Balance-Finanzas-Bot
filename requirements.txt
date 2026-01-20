@@ -1,0 +1,8 @@
+streamlit
+pandas
+plotly
+matplotlib
+python-telegram-bot
+google-generativeai
+gspread
+oauth2client

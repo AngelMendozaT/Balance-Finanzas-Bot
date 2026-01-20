@@ -1,0 +1,25 @@
+--- Inicializando Hoja de Google Sheets ---
+1. Verificando cabeceras...
+2. Creando gráfico en pestaña Dashboard...
+Creating chart in 'Dashboard' tab...
+Traceback (most recent call last):
+  File "F:\AntigravityPruebas\BalanceAutomatico\src\gsheets.py", line 163, in create_summary_chart
+    dashboard.update('A1', '=QUERY(Sheet1!A:G, "SELECT E, SUM(C) WHERE E IS NOT NULL GROUP BY E LABEL E \'Categoría\', SUM(C) \'Total\'", 1)')
+  File "C:\Users\Angel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\site-packages\gspread\worksheet.py", line 1246, in update
+    response = self.client.values_update(
+  File "C:\Users\Angel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\site-packages\gspread\http_client.py", line 173, in values_update
+    r = self.request("put", url, params=params, json=body)
+  File "C:\Users\Angel\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\site-packages\gspread\http_client.py", line 128, in request
+    raise APIError(response)
+gspread.exceptions.APIError: APIError: [400]: Invalid value at 'data.values' (type.googleapis.com/google.protobuf.ListValue), "A1"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "F:\AntigravityPruebas\BalanceAutomatico\src\setup_sheet.py", line 10, in <module>
+    create_summary_chart()
+  File "F:\AntigravityPruebas\BalanceAutomatico\src\gsheets.py", line 223, in create_summary_chart
+    print(f"\u274c Error creating chart: {e}")
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.10_3.10.3056.0_x64__qbz5n2kfra8p0\lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+UnicodeEncodeError: 'charmap' codec can't encode character '\u274c' in position 0: character maps to <undefined>
