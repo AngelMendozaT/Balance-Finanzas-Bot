@@ -64,10 +64,31 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         category = parts[2]
         
         # Update DB
+        
         if update_transaction_category(tx_id, category):
             await query.edit_message_text(text=f"✅ Clasificado como: **{category}**")
         else:
             await query.edit_message_text(text=f"❌ Error al actualizar Google Sheets. Revisa la terminal del bot.")
+
+# --- KEEP ALIVE FOR RENDER FREE TIER ---
+from flask import Flask
+from threading import Thread
+import os
+
+flask_app = Flask('')
+
+@flask_app.route('/')
+def home():
+    return "I am alive! 🤖"
+
+def run_http():
+    port = int(os.environ.get("PORT", 8080))
+    flask_app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run_http)
+    t.start()
+# ---------------------------------------
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle text messages as new pending transactions."""
@@ -127,4 +148,8 @@ if __name__ == '__main__':
         # For testing, you can trigger 'check' commands manually or run a loop.
         
         print("Bot iniciado...")
+        
+        # Start the dummy server
+        keep_alive()
+        
         application.run_polling()
