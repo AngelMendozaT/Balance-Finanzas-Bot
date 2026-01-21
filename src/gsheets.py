@@ -49,6 +49,7 @@ def get_db_connection():
         # 2. Environment Variable (Render/Railway/Docker)
         # We expect 'GCP_CREDENTIALS' to contain the JSON string
         env_creds = os.environ.get("GCP_CREDENTIALS")
+        print(f"DEBUG: Checking 'GCP_CREDENTIALS'... Present? {bool(env_creds)}, Length: {len(env_creds) if env_creds else 0}")
         if env_creds:
             try:
                 # If it's a file path
