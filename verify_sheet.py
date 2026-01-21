@@ -1,43 +1,39 @@
 from src.gsheets import get_db_connection, SPREADSHEET_ID, WORKSHEET_NAME
 
-def inspect_dashboard():
+def inspect_data_sheet():
     client = get_db_connection()
     if not client: return
 
     try:
         ss = client.open_by_key(SPREADSHEET_ID)
-        dash_name = "Dashboard_Gastos_v2"
-        
+        # Check the DATA sheet
         try:
-            ws = ss.worksheet(dash_name)
-            print(f"✅ Found Visual Dashboard: '{dash_name}'")
+            ws = ss.worksheet(WORKSHEET_NAME) # Gastos_V2_Data
+            print(f"✅ Found Data Sheet: '{WORKSHEET_NAME}'")
             
-            # Check Scorecards
-            total_label = ws.acell('C2').value
-            total_val = ws.acell('D2').value
-            print(f"   [Scorecard] {total_label}: {total_val}")
+            headers = ws.row_values(1)
+            print(f"📋 Headers: {headers}")
             
-            # Check Table Formula
-            table_formula = ws.acell('A5').value
-            print(f"   [Query Formula]: {table_formula}")
-            
-            # Check if query produced results (Cell A6, B6...)
-            # A headers are at row like.. wait QUERY puts headers.
-            # My query was header=1. So A5 is header ?? No I put query in A5.
-            # So A5 is header 'Categoría', B5 is 'Total'.
-            # Data starts A6.
-            
-            headers = ws.get_values("A5:B5")
-            print(f"   [Table Headers rendered]: {headers}")
-            
-            first_row = ws.get_values("A6:B6")
-            print(f"   [Table Data Row 1]: {first_row}")
-            
+            rows = ws.get_all_values()
+            print(f"📊 Total Rows: {len(rows)}")
+            if len(rows) > 1:
+                print(f"   First Data Row: {rows[1]}")
+            else:
+                print("⚠️ DATA SHEET IS EMPTY (Only headers).")
+
+            # Also check source if we need to migrate
+            try:
+                source_ws = ss.worksheet("Dashboard_Gastos_v2")
+                src_rows = source_ws.get_all_values()
+                print(f"ℹ️ Potential Source (Dashboard_Gastos_v2) has {len(src_rows)} rows.")
+            except:
+                print("Source sheet not found.")
+                
         except Exception as e:
-            print(f"❌ Error reading dashboard: {e}")
+            print(f"❌ Error reading data sheet: {e}")
 
     except Exception as e:
         print(f"Error: {e}")
 
 if __name__ == "__main__":
-    inspect_dashboard()
+    inspect_data_sheet()
