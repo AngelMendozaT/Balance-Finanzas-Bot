@@ -28,55 +28,56 @@ def get_db_connection():
     Connects to Google Sheets using:
     1. Streamlit Secrets (if in Cloud/Deployment)
     2. Local 'credentials.json' (if in Local Development)
+    3. Environment Variable 'GCP_CREDENTIALS' (Render/Docker)
     """
     try:
-        import streamlit as st
-        # Check if running in Streamlit and secrets are available
-        # Note: st.secrets works even if not "in streamlit" if .streamlit/secrets.toml exists, 
-        # but primarily for Cloud this is key.
-        
-        # We look for a section [gcp_service_account] in secrets
-        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
-            # Create a dict from the secrets object
-            # creds_dict = dict(st.secrets["gcp_service_account"]) # Might need specific formatting
-            # actually oauth2client expects a dict
-            key_dict = dict(st.secrets["gcp_service_account"])
-            
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, SCOPE)
-            client = gspread.authorize(creds)
-            return client
-            
-    except ImportError:
-        pass # Not using streamlit or not installed
-    except Exception as e:
-        print(f"Secrets check failed (ignoring if local): {e}")
+        # 1. Streamlit Secrets
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+                key_dict = dict(st.secrets["gcp_service_account"])
+                # Fix private key if needed
+                if "private_key" in key_dict:
+                    key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
+                    
+                creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, SCOPE)
+                client = gspread.authorize(creds)
+                return client
+        except:
+            pass
 
-    # 2. Standard Environment Variable (Render/Railway/Docker)
-    # We expect the content of credentials.json to be in a variable named 'GCP_CREDENTIALS'
-    try:
+        # 2. Environment Variable (Render/Railway/Docker)
+        # We expect 'GCP_CREDENTIALS' to contain the JSON string
         env_creds = os.environ.get("GCP_CREDENTIALS")
         if env_creds:
-            # It might be passed as a string representation of the JSON
-            key_dict = json.loads(env_creds)
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, SCOPE)
+            try:
+                # If it's a file path
+                if os.path.isfile(env_creds):
+                    creds = ServiceAccountCredentials.from_json_keyfile_name(env_creds, SCOPE)
+                else:
+                    # Assume it's a JSON string
+                    key_dict = json.loads(env_creds)
+                    if "private_key" in key_dict:
+                        key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
+                    creds = ServiceAccountCredentials.from_json_keyfile_dict(key_dict, SCOPE)
+                
+                client = gspread.authorize(creds)
+                print("✅ Connected via GCP_CREDENTIALS env var.")
+                return client
+            except Exception as e:
+                print(f"❌ Env var defined but failed: {e}")
+
+        # 3. Fallback to local file
+        if os.path.exists(CREDENTIALS_FILE):
+            creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
             client = gspread.authorize(creds)
             return client
-    except Exception as e:
-         print(f"Env var check failed: {e}")
+            
+        print(f"❌ Connection failed: {CREDENTIALS_FILE} not found and no Cloud Secrets detected.")
+        return None
 
-    # 3. Fallback to local file
-    try:
-        if not os.path.exists(CREDENTIALS_FILE):
-             # Don't print error if we already found it via other means, but here we are in fallback.
-             # Only print if we are truly stuck.
-            print(f"Error: {CREDENTIALS_FILE} not found (and no Cloud Secrets detected).")
-            return None
-
-        creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, SCOPE)
-        client = gspread.authorize(creds)
-        return client
     except Exception as e:
-        print(f"Error connecting to Google Sheets: {e}")
+        print(f"❌ Error connecting to Google Sheets: {e}")
         return None
 
 def _get_sheet(force_v2=True):
