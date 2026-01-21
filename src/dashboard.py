@@ -56,17 +56,38 @@ with st.sidebar.form("manual_add"):
 # 1. KPIs
 df = get_df()
 if not df.empty:
-    # Ensure columns exist (for GSheets empty case)
+    # Ensure columns exist
     if 'amount' not in df.columns: df['amount'] = 0
     if 'status' not in df.columns: df['status'] = 'pending_classification'
+    if 'month' not in df.columns: df['month'] = "Desconocido"
+    if 'year' not in df.columns: df['year'] = "Desconocido"
+
+    # --- sidebar filters ---
+    st.sidebar.header("Filtros")
     
-    total_spent = df['amount'].sum()
-    pending_tx = df[df['status'] == 'pending_classification'].shape[0]
+    # Year Filter
+    available_years = sorted(list(set(df['year'].astype(str))))
+    selected_year = st.sidebar.selectbox("Año", available_years, index=len(available_years)-1 if available_years else 0)
     
+    # Month Filter
+    available_months = sorted(list(set(df[df['year'].astype(str) == selected_year]['month'].astype(str))))
+    selected_month = st.sidebar.multiselect("Mes", available_months, default=available_months)
+    
+    # Apply filters
+    if selected_month:
+        df_filtered = df[ (df['year'].astype(str) == selected_year) & (df['month'].astype(str).isin(selected_month)) ]
+    else:
+        df_filtered = df[df['year'].astype(str) == selected_year]
+    
+    # KPI Calculations based on filtered data
+    total_spent = df_filtered['amount'].sum()
+    pending_tx = df_filtered[df_filtered['status'] == 'pending_classification'].shape[0]
+    avg_tx = df_filtered['amount'].mean() if len(df_filtered) > 0 else 0
+
     col1, col2, col3 = st.columns(3)
-    col1.metric("Gasto Total (Histórico)", f"S/ {total_spent:,.2f}")
-    col2.metric("Pendientes de Clasificar", f"{pending_tx}", delta_color="inverse")
-    col3.metric("Transacciones", len(df))
+    col1.metric("Gasto Total", f"S/ {total_spent:,.2f}")
+    col2.metric("Pendientes", f"{pending_tx}", delta_color="inverse")
+    col3.metric("Promedio por Gasto", f"S/ {avg_tx:,.2f}")
 
     st.divider()
 
@@ -81,7 +102,7 @@ if not df.empty:
     valid_categories = get_categories()
     
     edited_df = st.data_editor(
-        df,
+        df_filtered, # Use filtered data for the table
         column_config={
             "category": st.column_config.SelectboxColumn(
                 "Categoría",
@@ -97,10 +118,10 @@ if not df.empty:
             "status": st.column_config.SelectboxColumn(
                 "Estado",
                 options=["verified", "pending_classification"],
-                disabled=True # Status updates automatically when you change category ideally, but keeping it visible
+                disabled=True 
             )
         },
-        disabled=["id", "date", "source"], # Prevent editing generic fields
+        disabled=["id", "date", "source", "month", "year"], # Prevent editing generic fields
         hide_index=True,
         use_container_width=True,
         num_rows="dynamic",
@@ -147,17 +168,21 @@ if not df.empty:
     
     with col_chart1:
         st.markdown("**Por Categoría**")
-        cat_sum = df.groupby("category")["amount"].sum().reset_index()
-        fig_pie = px.pie(cat_sum, values='amount', names='category', hole=0.4)
+        cat_sum = df_filtered.groupby("category")["amount"].sum().reset_index()
+        fig_pie = px.pie(cat_sum, values='amount', names='category', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
         st.plotly_chart(fig_pie, use_container_width=True)
 
     with col_chart2:
-        st.markdown("**Evolución Diaria**")
-        # Convert date to datetime just in case
-        df['date_dt'] = pd.to_datetime(df['date'])
-        daily_sum = df.groupby(df['date_dt'].dt.date)["amount"].sum().reset_index()
-        fig_bar = px.bar(daily_sum, x='date_dt', y='amount', title="Gastos por Día")
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.markdown("**Evolución Diaria (Mes Actual)**")
+        # Ensure correct type
+        # In V2, we might want to just show the days of the selected filtered view
+        try:
+             df_filtered['date_dt'] = pd.to_datetime(df_filtered['date'])
+             daily_sum = df_filtered.groupby(df_filtered['date_dt'].dt.date)["amount"].sum().reset_index()
+             fig_bar = px.bar(daily_sum, x='date_dt', y='amount', title="Gastos por Día", color_discrete_sequence=['#4B4EFC'])
+             st.plotly_chart(fig_bar, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error parseando fechas: {e}")
 
 else:
     st.warning("No hay datos aún. Usa el formulario de la izquierda o espera a que lleguen correos.")

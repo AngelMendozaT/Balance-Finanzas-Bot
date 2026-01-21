@@ -13,11 +13,11 @@ def add_transaction(date, amount, description, source, category='Otros', status=
 
 def get_transactions_df():
     """Return all transactions from Google Sheets as DataFrame."""
-    return gsheets.get_transaction_data()
+    return gsheets.get_transactions_df()
 
 def update_transaction_category(tx_id, new_category):
     """Update the category of a specific transaction in Sheets."""
-    return gsheets.update_transaction_category(tx_id, new_category)
+    return gsheets.update_category(tx_id, new_category)
 
 def get_categories():
     """Get list of categories."""

@@ -1,12 +1,9 @@
-from gsheets import ensure_headers, create_summary_chart
+from gsheets import ensure_headers_v2
 
 if __name__ == "__main__":
-    print("--- Inicializando Hoja de Google Sheets ---")
+    print("--- Inicializando Estructura V2 de Google Sheets ---")
     
-    print("1. Verificando cabeceras...")
-    ensure_headers()
+    print("1. Verificando/Creando hoja 'Dashboard_Gastos_v2'...")
+    ensure_headers_v2()
     
-    print("2. Creando gráfico en pestaña Dashboard...")
-    create_summary_chart()
-    
-    print("!Todo listo!")
+    print("!Todo listo! Estructura V2 creada.")
