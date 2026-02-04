@@ -6,4 +6,3 @@ python-telegram-bot
 google-generativeai
 gspread
 oauth2client
-flask

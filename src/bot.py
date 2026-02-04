@@ -70,25 +70,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.edit_message_text(text=f"❌ Error al actualizar Google Sheets. Revisa la terminal del bot.")
 
-# --- KEEP ALIVE FOR RENDER FREE TIER ---
-from flask import Flask
-from threading import Thread
-import os
-
-flask_app = Flask('')
-
-@flask_app.route('/')
-def home():
-    return "I am alive! 🤖"
-
-def run_http():
-    port = int(os.environ.get("PORT", 8080))
-    flask_app.run(host='0.0.0.0', port=port)
-
-def keep_alive():
-    t = Thread(target=run_http)
-    t.start()
-# ---------------------------------------
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle text messages as new pending transactions."""
@@ -116,19 +97,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from db import add_transaction
     from datetime import datetime
     
-    add_transaction(
-        date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        amount=amount,
-        description=description,
-        source="Telegram Bot",
-        category="Otros",
-        status="pending_classification"
-    )
+    # Try to save the transaction and notify user of result
+    try:
+        add_transaction(
+            date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            amount=amount,
+            description=description,
+            source="Telegram Bot",
+            category="Otros",
+            status="pending_classification"
+        )
+        
+        # Send success confirmation
+        await update.message.reply_text(f"✅ Registrado: {description} - S/ {amount}\nEsperando clasificación...")
+        
+        # Trigger the classification flow immediately
+        await check_pending_transactions(context, chat_id=chat_id)
+        
+    except Exception as e:
+        # Send error notification
+        error_msg = f"❌ ERROR: No pude guardar '{description} - S/ {amount}'\n\nDetalles: {str(e)}\n\nRevisa:\n• Google Sheets\n• Credenciales\n• Logs de Render"
+        await update.message.reply_text(error_msg)
+        print(f"Error saving transaction: {e}")
     
-    # Trigger the classification flow immediately
-    await check_pending_transactions(context, chat_id=chat_id)
-    
-    # Acknowledge
+    # Acknowledge (commented out since we now have explicit confirmations above)
     # await update.message.reply_text(f"📝 Gasto registrado: S/ {amount}. Clasifícalo arriba 👆")
 
 if __name__ == '__main__':
@@ -148,8 +140,5 @@ if __name__ == '__main__':
         # For testing, you can trigger 'check' commands manually or run a loop.
         
         print("Bot iniciado...")
-        
-        # Start the dummy server
-        keep_alive()
         
         application.run_polling()
