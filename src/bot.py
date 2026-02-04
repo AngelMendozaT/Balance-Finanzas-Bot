@@ -22,35 +22,51 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def check_pending_transactions(context: ContextTypes.DEFAULT_TYPE, chat_id=None):
     """Scheduled job to check DB for unclassified items."""
-    df = get_transactions_df()
-    pending = df[df['status'] == 'pending_classification']
-    
-    # In a real app, you'd store the user's chat_id in the DB or config.
-    # We allow passing chat_id explicitly (from manual message) or getting it from job (scheduled)
-    if chat_id is None and context.job:
-        chat_id = context.job.chat_id
-    
-    if chat_id is None:
-        print("Warning: No chat_id found for checking transactions.")
-        return
-    
-    for index, row in pending.iterrows():
-        # Create buttons for categories
-        cats = get_categories()
-        # Limit to first 4 for UI simplicity + "Other"
-        keyboard = [
-            [InlineKeyboardButton(c, callback_data=f"cat_{row['id']}_{c}") for c in cats[:3]],
-            [InlineKeyboardButton(c, callback_data=f"cat_{row['id']}_{c}") for c in cats[3:6]]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+    try:
+        df = get_transactions_df()
         
-        msg = f"⚠️ **Gasto sin clasificar**\n\n💰 **S/ {row['amount']}**\n📅 {row['date']}\n📝 {row['description']}\nℹ️ Fuente: {row['source']}"
+        if df is None or df.empty:
+            print("No transactions found or error fetching data")
+            return
+            
+        pending = df[df['status'] == 'pending_classification']
         
-        await context.bot.send_message(chat_id=chat_id, text=msg, reply_markup=reply_markup)
+        # In a real app, you'd store the user's chat_id in the DB or config.
+        # We allow passing chat_id explicitly (from manual message) or getting it from job (scheduled)
+        if chat_id is None and context.job:
+            chat_id = context.job.chat_id
         
-        # Don't spam, maybe just 1 at a time or create a queue mechanism. 
-        # For prototype, we break after 1 to verify flow.
-        break 
+        if chat_id is None:
+            print("Warning: No chat_id found for checking transactions.")
+            return
+        
+        for index, row in pending.iterrows():
+            # Create buttons for categories
+            cats = get_categories()
+            # Limit to first 4 for UI simplicity + "Other"
+            keyboard = [
+                [InlineKeyboardButton(c, callback_data=f"cat_{row['id']}_{c}") for c in cats[:3]],
+                [InlineKeyboardButton(c, callback_data=f"cat_{row['id']}_{c}") for c in cats[3:6]]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            msg = f"⚠️ **Gasto sin clasificar**\n\n💰 **S/ {row['amount']}**\n📅 {row['date']}\n📝 {row['description']}\nℹ️ Fuente: {row['source']}"
+            
+            await context.bot.send_message(chat_id=chat_id, text=msg, reply_markup=reply_markup, parse_mode='Markdown')
+            
+            # Don't spam, maybe just 1 at a time or create a queue mechanism. 
+            # For prototype, we break after 1 to verify flow.
+            break
+    except Exception as e:
+        print(f"Error in check_pending_transactions: {e}")
+        import traceback
+        traceback.print_exc()
+        if chat_id:
+            try:
+                await context.bot.send_message(chat_id=chat_id, text=f"⚠️ Error al buscar gastos pendientes:\n{str(e)}")
+            except:
+                pass
+
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
