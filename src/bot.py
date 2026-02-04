@@ -70,6 +70,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.edit_message_text(text=f"❌ Error al actualizar Google Sheets. Revisa la terminal del bot.")
 
+# --- MINIMAL HTTP SERVER FOR RENDER ---
+from flask import Flask
+from threading import Thread
+import os
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is alive! 🤖", 200
+
+@app.route('/health')
+def health():
+    return "OK", 200
+
+def run_server():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+
+def start_server():
+    server_thread = Thread(target=run_server, daemon=True)
+    server_thread.start()
+# ---------------------------------------
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle text messages as new pending transactions."""
@@ -140,5 +164,9 @@ if __name__ == '__main__':
         # For testing, you can trigger 'check' commands manually or run a loop.
         
         print("Bot iniciado...")
+        
+        # Start HTTP server for Render keep-alive
+        start_server()
+        print("HTTP server started on port", os.environ.get("PORT", 8080))
         
         application.run_polling()
